@@ -1,70 +1,37 @@
-from fastapi import HTTPException
+from fastapi import APIRouter, status
 
-from app.schemas.equipo import EquipoCreate
+from app.schemas.equipo import EquipoCreate, EquipoResponse
+from app.services.equipo_service import (
+    actualizar_equipo,
+    crear_equipo,
+    eliminar_equipo,
+    listar_equipos,
+    obtener_equipo,
+)
 
-_equipos: list[dict] = []
-_next_id = 1
-
-
-def listar_equipos() -> list[dict]:
-    return _equipos
-
-
-def obtener_equipo(equipo_id: int) -> dict:
-    for e in _equipos:
-        if e["id"] == equipo_id:
-            return e
-    raise HTTPException(
-        status_code=404,
-        detail="Equipo no encontrado",
-    )
+router = APIRouter(prefix="/equipos", tags=["Equipos"])
 
 
-def crear_equipo(equipo: EquipoCreate) -> dict:
-    global _next_id
-
-    existe = any(
-        e["nombre"].lower() == equipo.nombre.lower() for e in _equipos
-    )
-    if existe:
-        raise HTTPException(
-            status_code=400,
-            detail="Ya existe un equipo con ese nombre",
-        )
-
-    nuevo = {
-        "id": _next_id,
-        "nombre": equipo.nombre,
-        "categoria": equipo.categoria,
-        "disponible": True,
-    }
-    _equipos.append(nuevo)
-    _next_id += 1
-
-    return nuevo
+@router.get("/", response_model=list[EquipoResponse])
+def get_equipos():
+    return listar_equipos()
 
 
-def actualizar_equipo(equipo_id: int, equipo: EquipoCreate) -> dict:
-    actual = obtener_equipo(equipo_id)
-
-    duplicado = any(
-        e["id"] != equipo_id and e["nombre"].lower() == equipo.nombre.lower()
-        for e in _equipos
-    )
-    if duplicado:
-        raise HTTPException(
-            status_code=400,
-            detail="Ya existe otro equipo con ese nombre",
-        )
-
-    actual["nombre"] = equipo.nombre
-    actual["categoria"] = equipo.categoria
-
-    return actual
+@router.get("/{equipo_id}", response_model=EquipoResponse)
+def get_equipo(equipo_id: int):
+    return obtener_equipo(equipo_id)
 
 
-def eliminar_equipo(equipo_id: int) -> dict:
-    equipo = obtener_equipo(equipo_id)
-    _equipos.remove(equipo)
+@router.post("/", response_model=EquipoResponse, status_code=status.HTTP_201_CREATED)
+def post_equipo(equipo: EquipoCreate):
+    return crear_equipo(equipo)
 
-    return equipo
+
+@router.put("/{equipo_id}", response_model=EquipoResponse)
+def put_equipo(equipo_id: int, equipo: EquipoCreate):
+    return actualizar_equipo(equipo_id, equipo)
+
+
+@router.delete("/{equipo_id}", response_model=EquipoResponse)
+def delete_equipo(equipo_id: int):
+    return eliminar_equipo(equipo_id)
